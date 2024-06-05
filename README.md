@@ -1,2 +1,4 @@
 # EEBO-Analysis
-Projects for text analysis on EEBO corpus
+
+This project is designed to preprocess and analyze large corpora of texts.
+
