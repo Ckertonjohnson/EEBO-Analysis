@@ -1,8 +1,9 @@
 data_path:
-  raw: "/content/drive/MyDrive/data/raw/"
-  processed: "/content/drive/MyDrive/data/processed/"
-preprocessing:
-  chunk_size: 1000
-  stop_words: ["the", "and", "is", "in", "to", "of"]
+  raw: "/content/drive/MyDrive/EEBO/EEBO raw data/"
+  processed: "/content/drive/MyDrive/EEBO/Processed data/"
+progress_tracker_path: "/content/drive/MyDrive/EEBO/Indexed Checkpoint Files/progress_tracker.txt"
+checkpoints_path: "/content/drive/MyDrive/EEBO/Indexed Checkpoint Files/checkpoints.csv"
+batch_size: 50
 logging:
   level: "INFO"
+stop_words: ["the", "and", "is", "in", "to", "of"]
