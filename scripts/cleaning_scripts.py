@@ -1,22 +1,25 @@
-##Perform the next cleaning steps to prepare text for analysis
-
 import pandas as pd
 import re
 import os
+import json
+import yaml
 from google.colab import drive
 import nltk
 from nltk.corpus import stopwords
 
+# Load configuration
+with open('/content/drive/MyDrive/EEBO/config/config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+
+# Mount Google Drive
+drive.mount('/content/drive')
+
 # Download NLTK stopwords
 nltk.download('stopwords')
 
-# Define stop words, including Early Modern English spellings and special characters
+# Define stop words, including those from the config file
 modern_stopwords = set(stopwords.words('english'))
-early_modern_english_stopwords = set([
-    'thou', 'thee', 'thy', 'thine', 'ye', 'hath', 'doth', 'art', 'hast', 'shall', 'shalt',
-    'wilt', 'wert', 'wast', 'aught', 'naught', 'twixt', 'o', 'ere', 'nay', 'yea'
-    # Add more stop words as needed
-])
+early_modern_english_stopwords = set(config['stop_words'])
 all_stopwords = modern_stopwords.union(early_modern_english_stopwords)
 
 def clean_text(text):
@@ -108,11 +111,11 @@ def process_existing_csv_files(input_directory, output_directory, batch_size, pr
 
         save_progress(batch_start + batch_size, progress_tracker_path)
 
-# Paths to your directories
-input_directory = '/content/drive/MyDrive/EEBO/EEBO raw data'
-output_directory = '/content/drive/MyDrive/EEBO/EEBO_Analysis/cleaned_metadata_csv'
-progress_tracker_path = '/content/drive/MyDrive/EEBO/EEBO_Analysis/cleaned_metadata_csv/progress_tracker.json'
-batch_size = 50  # Adjust the batch size based on your preference
+# Load paths and parameters from config
+input_directory = config['data_path']['raw']
+output_directory = config['data_path']['processed']
+progress_tracker_path = config['progress_tracker_path']
+batch_size = config['batch_size']
 
 # Process existing CSV files in batches
 process_existing_csv_files(input_directory, output_directory, batch_size, progress_tracker_path)
