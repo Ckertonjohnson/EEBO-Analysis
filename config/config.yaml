@@ -6,4 +6,32 @@ checkpoints_path: "/content/drive/MyDrive/EEBO/Indexed Checkpoint Files/checkpoi
 batch_size: 50
 logging:
   level: "INFO"
-stop_words: ["the", "and", "is", "in", "to", "of"]
+stop_words:
+  - "the"
+  - "and"
+  - "is"
+  - "in"
+  - "to"
+  - "of"
+  - "thou"
+  - "thee"
+  - "thy"
+  - "thine"
+  - "ye"
+  - "hath"
+  - "doth"
+  - "art"
+  - "hast"
+  - "shall"
+  - "shalt"
+  - "wilt"
+  - "wert"
+  - "wast"
+  - "aught"
+  - "naught"
+  - "twixt"
+  - "o"
+  - "ere"
+  - "nay"
+  - "yea"
+  # Add more stop words as needed
