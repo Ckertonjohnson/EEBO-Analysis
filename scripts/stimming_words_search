@@ -42,6 +42,11 @@ def count_words(text, word_variants):
             word_count[word] += len(re.findall(r'\b' + re.escape(variant) + r'\b', text, re.IGNORECASE))
     return word_count
 
+# Function to save word count results
+def save_word_count_results(word_count_results, output_file_path):
+    with open(output_file_path, 'w') as f:
+        json.dump(word_count_results, f)
+
 # Iterate through all CSV files in the input directory
 for root, dirs, files in os.walk(input_directory):
     for file_name in sorted(files):
@@ -55,25 +60,44 @@ for root, dirs, files in os.walk(input_directory):
             try:
                 df = pd.read_csv(file_path)
                 
+                # Debugging: print the number of rows in the current CSV file
+                print(f"Processing file {file_name} with {df.shape[0]} rows")
+                
                 # Resume from the last processed row if this file was interrupted
                 start_row = progress_tracker["last_processed_row"] if file_name == progress_tracker["last_processed_file"] else 0
 
-                # Perform word counting
+                # Perform word counting on the 'ProcessedText' column
                 for index in range(start_row, len(df)):
                     row = df.iloc[index]
                     text = row['ProcessedText']
                     word_counts = count_words(text, stimming_word_variants)
-                    for word, count in word_counts.items():
-                        word_count_results[word] += count
+                    
+                    # Process only if the word count is greater than zero
+                    if any(word_counts.values()):
+                        for word, count in word_counts.items():
+                            word_count_results[word] += count
                     
                     # Update progress tracker
-                    progress_tracker = {"last_processed_file": file_name, "last_processed_row": index}
-                    save_progress(progress_tracker, progress_tracker_path)
+                    progress_tracker = {"last_processed_file": file_name, "last_processed_row": index + 1}
                     
-                    # Clear memory
-                    if index % 50 == 0:
+                    # Clear memory and print progress
+                    if (index + 1) % 50 == 0:
                         gc.collect()
+                        print(f"Processed {index + 1} rows in {file_name}")
+                        save_progress(progress_tracker, progress_tracker_path)
+
+                # Save intermediate results after processing each file
+                save_word_count_results(word_count_results, output_file_path)
+                print(f"Intermediate word count results saved after processing {file_name}")
+                
+                # Save progress after processing each file
+                save_progress(progress_tracker, progress_tracker_path)
 
             except Exception as e:
                 logging.error(f"Error processing file {file_path}: {e}")
                 continue
+
+# Save the final word count results
+with open(output_file_path, 'w') as f:
+    json.dump(word_count_results, f)
+print(f"Word count results saved to {output_file_path}")
