@@ -1,0 +1,79 @@
+import pandas as pd
+import os
+import json
+import re
+import logging
+import gc
+from collections import defaultdict
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+from google.colab import drive
+
+# Configure logging
+logging.basicConfig(filename='/content/drive/MyDrive/EEBO/EEBO_Analysis/word_count_logs.log', level=logging.INFO, 
+                    format='%(asctime)s %(levelname)s:%(message)s')
+
+# Define paths
+input_directory = '/content/drive/MyDrive/EEBO/EEBO_Analysis/cleaned_metadata_csv/metadata_csv'
+progress_tracker_path = '/content/drive/MyDrive/EEBO/EEBO_Analysis/Stimming words analysis/stimming_word_count_progress_tracker.json'
+output_file_path = '/content/drive/MyDrive/EEBO/EEBO_Analysis/Stimming words analysis/stimming_word_count_results.json'
+
+# Create output directory if it doesn't exist
+os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+# Function to load progress
+def load_progress(progress_tracker_path):
+    try:
+        with open(progress_tracker_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"last_processed_file": None, "last_processed_row": 0}
+
+# Function to save progress
+def save_progress(progress, progress_tracker_path):
+    with open(progress_tracker_path, 'w') as f:
+        json.dump(progress, f)
+
+# Function to perform word count
+def count_words(text, word_variants):
+    word_count = defaultdict(int)
+    for word, variants in word_variants.items():
+        for variant in variants:
+            word_count[word] += len(re.findall(r'\b' + re.escape(variant) + r'\b', text, re.IGNORECASE))
+    return word_count
+
+# Iterate through all CSV files in the input directory
+for root, dirs, files in os.walk(input_directory):
+    for file_name in sorted(files):
+        if file_name.endswith('.csv'):
+            file_path = os.path.join(root, file_name)
+            
+            # Skip files that have already been processed
+            if progress_tracker["last_processed_file"] and file_name <= progress_tracker["last_processed_file"]:
+                continue
+            
+            try:
+                df = pd.read_csv(file_path)
+                
+                # Resume from the last processed row if this file was interrupted
+                start_row = progress_tracker["last_processed_row"] if file_name == progress_tracker["last_processed_file"] else 0
+
+                # Perform word counting
+                for index in range(start_row, len(df)):
+                    row = df.iloc[index]
+                    text = row['ProcessedText']
+                    word_counts = count_words(text, stimming_word_variants)
+                    for word, count in word_counts.items():
+                        word_count_results[word] += count
+                    
+                    # Update progress tracker
+                    progress_tracker = {"last_processed_file": file_name, "last_processed_row": index}
+                    save_progress(progress_tracker, progress_tracker_path)
+                    
+                    # Clear memory
+                    if index % 50 == 0:
+                        gc.collect()
+
+            except Exception as e:
+                logging.error(f"Error processing file {file_path}: {e}")
+                continue
