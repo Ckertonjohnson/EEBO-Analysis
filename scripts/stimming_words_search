@@ -29,6 +29,13 @@ def load_progress(progress_tracker_path):
     except FileNotFoundError:
         return {"last_processed_file": None, "last_processed_row": 0}
 
+# Generate word cloud
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_count_results)
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
 # Function to save progress
 def save_progress(progress, progress_tracker_path):
     with open(progress_tracker_path, 'w') as f:
