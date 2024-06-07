@@ -108,3 +108,10 @@ for root, dirs, files in os.walk(input_directory):
 with open(output_file_path, 'w') as f:
     json.dump(word_count_results, f)
 print(f"Word count results saved to {output_file_path}")
+
+# Generate word cloud
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_count_results)
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.show()
