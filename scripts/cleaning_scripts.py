@@ -1,3 +1,8 @@
+!pip install spacy
+
+import spacy
+spacy.cli.download('en_core_web_sm')
+
 import pandas as pd
 import re
 import os
@@ -6,6 +11,9 @@ import yaml
 from google.colab import drive
 import nltk
 from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from collections import Counter
 
 # Load configuration
 with open('/content/drive/MyDrive/EEBO/config/config.yaml', 'r') as f:
@@ -14,13 +22,21 @@ with open('/content/drive/MyDrive/EEBO/config/config.yaml', 'r') as f:
 # Mount Google Drive
 drive.mount('/content/drive')
 
-# Download NLTK stopwords
+# Download NLTK resources
 nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('wordnet')
+
+# Load spaCy model
+nlp = spacy.load('en_core_web_sm')
 
 # Define stop words, including those from the config file
 modern_stopwords = set(stopwords.words('english'))
 early_modern_english_stopwords = set(config['stop_words'])
 all_stopwords = modern_stopwords.union(early_modern_english_stopwords)
+
+# Initialize lemmatizer
+lemmatizer = WordNetLemmatizer()
 
 def clean_text(text):
     """
@@ -30,9 +46,25 @@ def clean_text(text):
     :return: Cleaned text.
     """
     text = text.lower()  # Convert to lowercase
+    text = re.sub(r'\d+', '', text)  # Remove numbers
+    text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
     text = re.sub(r'\W', ' ', text)  # Remove punctuation
     text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
     return text
+
+def handle_negations(text):
+    """
+    Handle negation words in text to capture their impact.
+    
+    :param text: The text content to process.
+    :return: Text with negations handled.
+    """
+    negations = ["not", "no", "never", "n't"]
+    words = text.split()
+    for i in range(len(words) - 1):
+        if words[i] in negations:
+            words[i + 1] = "not_" + words[i + 1]
+    return ' '.join([word for word in words if word not in negations])
 
 def preprocess_existing_text(text):
     """
@@ -42,9 +74,16 @@ def preprocess_existing_text(text):
     :return: Cleaned and preprocessed text.
     """
     text = clean_text(text)  # Perform initial cleaning and normalization
-    tokens = text.split()
-    tokens = [word for word in tokens if word not in all_stopwords]
-    return ' '.join(tokens)
+    text = handle_negations(text)  # Handle negations
+    doc = nlp(text)  # Perform POS tagging
+    tokens = []
+    pos_tags = []
+    for token in doc:
+        lemma = lemmatizer.lemmatize(token.text, pos=token.tag_[0].lower()) if token.tag_[0].lower() in ['a', 'n', 'v', 'r'] else token.text
+        if lemma not in all_stopwords and len(lemma) > 2:
+            tokens.append(lemma)
+            pos_tags.append((lemma, token.tag_))
+    return ' '.join(tokens), pos_tags
 
 def save_progress(batch_number, progress_tracker_path):
     """
@@ -100,7 +139,7 @@ def process_existing_csv_files(input_directory, output_directory, batch_size, pr
             df = pd.read_csv(file_path)
 
             # Apply cleaning to the 'ProcessedText' column
-            df['ProcessedText'] = df['ProcessedText'].apply(preprocess_existing_text)
+            df['ProcessedText'], df['POSTags'] = zip(*df['ProcessedText'].apply(preprocess_existing_text))
 
             # Save the cleaned DataFrame to a new CSV file, preserving directory structure
             relative_path = os.path.relpath(file_path, input_directory)
