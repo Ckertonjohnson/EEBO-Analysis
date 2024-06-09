@@ -1,0 +1,51 @@
+import pandas as pd
+import os
+import json
+import gc
+
+# Define paths
+input_directory = '/content/drive/MyDrive/EEBO/EEBO_Analysis/cleaned_metadata_csv/metadata_csv/'
+output_directory = '/content/drive/MyDrive/EEBO/EEBO_Analysis/metadata_json/'
+progress_tracker_path = os.path.join(output_directory, 'progress_tracker.json')
+batch_size = 50  # Adjust based on your preference
+
+# Create output directory if it doesn't exist
+os.makedirs(output_directory, exist_ok=True)
+
+def save_progress(progress_tracker_path, progress):
+    with open(progress_tracker_path, 'w') as f:
+        json.dump(progress, f)
+
+def load_progress(progress_tracker_path):
+    try:
+        with open(progress_tracker_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def process_files(input_directory, output_directory, batch_size, progress_tracker_path):
+    all_files = [file for file in os.listdir(input_directory) if file.endswith('.csv')]
+    processed_files = load_progress(progress_tracker_path)
+    remaining_files = [file for file in all_files if file not in processed_files]
+
+    for i in range(0, len(remaining_files), batch_size):
+        batch_files = remaining_files[i:i+batch_size]
+        for file_name in batch_files:
+            file_path = os.path.join(input_directory, file_name)
+            try:
+                df = pd.read_csv(file_path)
+                json_output_path = os.path.join(output_directory, file_name.replace('.csv', '.json'))
+                df.to_json(json_output_path, orient='records', lines=True)
+                processed_files.append(file_name)
+                print(f"Processed and saved: {file_name}")
+                
+                # Save progress after each file is processed
+                save_progress(progress_tracker_path, processed_files)
+                
+                # Garbage collection to free up memory
+                del df
+                gc.collect()
+            except Exception as e:
+                print(f"Error processing file {file_name}: {e}")
+
+process_files(input_directory, output_directory, batch_size, progress_tracker_path)
