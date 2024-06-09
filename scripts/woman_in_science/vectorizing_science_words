@@ -1,0 +1,171 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+ #install libraries
+!pip install lxml whoosh
+!pip install nltk spacy gensim
+!python -m spacy download en_core_web_sm
+!pip install -U
+
+#import libraries
+import os
+import spacy
+import re
+import string
+import gensim
+from collections import Counter
+from nltk.corpus import PlaintextCorpusReader
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from gensim.models import Word2Vec
+import json
+from lxml import etree
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import nltk
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+import gc
+from collections import defaultdict
+nltk.download('stopwords')
+import logging
+from bs4 import BeautifulSoup
+from multiprocessing import Pool, cpu_count
+
+#import spaCy and download the model
+nlp = spacy.load('en_core_web_sm')
+
+from gensim.models import Word2Vec
+import os
+import json
+import logging
+import gc
+
+# Setup logging
+logging.basicConfig(filename='word2vec_training_errors.log', level=logging.ERROR)
+
+# Function to train Word2Vec with explicit learning rate parameters
+def train_word2vec_with_explicit_alpha(directory, model_path, vector_size=100, window=5, min_count=1, epochs=5, negative=5, initial_alpha=0.025, final_alpha=0.001):
+    """Train Word2Vec incrementally with a consistent learning rate."""
+    if os.path.exists(model_path):
+        # Load the existing model if it exists
+        word2vec_model = Word2Vec.load(model_path)
+    else:
+        # Create a new model if it doesn't exist
+        word2vec_model = Word2Vec(
+            vector_size=vector_size,
+            window=window,
+            min_count=min_count,
+            workers=2,
+            negative=negative,
+            alpha=initial_alpha,
+            min_alpha=final_alpha  # Set the final learning rate
+        )
+
+    file_count = 0
+    for root, _, filenames in os.walk(directory):
+        for filename in filenames:
+            if filename.endswith('.json'):
+                file_path = os.path.join(root, filename)
+                try:
+                    texts = []
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        for line in file:
+                            try:
+                                document = json.loads(line)
+                                # Extract tokens from each document
+                                if 'ProcessedText' in document:
+                                    texts.append(document['ProcessedText'].split())
+                            except json.JSONDecodeError:
+                                logging.error(f"Error decoding JSON line in {file_path}")
+                    
+                    if texts:
+                        if word2vec_model.wv.key_to_index:  # Vocabulary already built
+                            word2vec_model.build_vocab(texts, update=True)  # Update vocabulary incrementally
+                        else:
+                            word2vec_model.build_vocab(texts)  # Build vocabulary from scratch
+
+                        # Train the model without the 'alpha' parameter
+                        word2vec_model.train(
+                            texts,
+                            total_examples=len(texts),
+                            epochs=epochs
+                        )
+
+                        file_count += 1
+                        if file_count % 5 == 0:
+                            # Save the model after processing every 5 files
+                            word2vec_model.save(model_path)
+                            print(f"Processed {file_count} files. Model saved.")
+                            gc.collect()  # Free memory after each save
+
+                except Exception as e:
+                    logging.error(f"Unexpected error during Word2Vec training: {str(e)}")
+
+    word2vec_model.save(model_path)  # Save the final model
+    print("Word2Vec model training completed and saved successfully.")
+  # Set the folder path for the data and model save path
+json_folder_path = "/content/drive/MyDrive/EEBO/EEBO_Analysis/metadata_json"
+model_path = "/content/drive/MyDrive/EEBO/EEBO_Analysis/Women in Science/word2vec_explicit_alpha.model"
+
+# Train Word2Vec with explicit alpha settings without passing 'alpha' to 'train'
+train_word2vec_with_explicit_alpha(json_folder_path, model_path)
+
+scientific_terms = {
+    "medicine": ["physician", "healer", "herbalist", "midwife"],
+    "alchemy": ["alchemist", "elixir", "philosopher's stone"],
+    "botany": ["botanist", "herbal", "plant study"],
+    "astronomy": ["astronomer", "star chart", "celestial observations"],
+    "chemistry": ["chemist", "chemical", "compound"],
+    "physics": ["physicist", "mechanical", "natural philosophy"]
+}
+
+# Check if the vocabulary contains expected words
+# Load the Word2Vec model
+model_path = "/content/drive/MyDrive/EEBO/EEBO_Analysis/Women in Science/word2vec_explicit_alpha.model"  # Path to your Word2Vec model
+word2vec_model = Word2Vec.load(model_path)  # Load the model
+
+vocab = set(word2vec_model.wv.index_to_key)
+missing_words = [word for word in scientific_terms if word not in vocab]
+
+if missing_words:
+    print("These seed words are missing from the Word2Vec vocabulary:", missing_words)
+else:
+    print("All seed words are in the Word2Vec vocabulary.")
+
+# Setup logging to capture errors or issues during execution
+logging.basicConfig(filename='scientific_terms_errors.log', level=logging.ERROR)
+
+# Number of similar words to retrieve for each seed word
+num_similar_words = 50  # Adjust to get more or fewer similar words
+
+# Store similar words in a set to avoid duplicates
+scientific_terms_set = set()
+
+# Loop through each category 
+for category, seed_words in scientific_terms.items():
+    # Loop through each seed word in the category
+    for seed_word in seed_words:
+        # Check if the seed word is in the Word2Vec vocabulary
+        if seed_word in word2vec_model.wv:
+            # Get the most similar words
+            try:
+                similar_words = word2vec_model.wv.most_similar(seed_word, topn=num_similar_words)
+                # Add the similar words to the set
+                for word, _ in similar_words:
+                    scientific_terms_set.add(word)
+            except Exception as e:
+                logging.error(f"Error finding similar words for '{seed_word}': {str(e)}")
+        else:
+            print(f"Seed word '{seed_word}' not in Word2Vec vocabulary.")
+
+# Convert the set to a list for final output
+scientific_terms_list = list(scientific_terms_set)
+
+# Print the scientific terms
+print("Derived scientific terms:")
+print(scientific_terms_list)
