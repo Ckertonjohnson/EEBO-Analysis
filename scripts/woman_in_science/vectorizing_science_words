@@ -169,3 +169,72 @@ scientific_terms_list = list(scientific_terms_set)
 # Print the scientific terms
 print("Derived scientific terms:")
 print(scientific_terms_list)
+
+##Results are filtered to find the early mdoern science words, and create the following dictionary
+
+revised_science_words = {
+    'astronomer': ['astronomer', 'aſtronomer', 'astronomical', 'astronomicall', 'astronomie', 'astronomy'],
+    'chemist': ['chymist', 'chimice', 'chimist', 'chymiſt', 'chymico', 'chymical', 'chimica', 'chymically'],
+    'physician': ['physician', 'physitian', 'phisician', 'phisitions', 'phisitians', 'physicions', 'physitions', 'physiti'],
+    'alchemy': ['alchimy', 'alchimeia', 'alchymy'],
+    'anatomy': ['anatomia', 'anatomist', 'anatomical'],
+    'herbalist': ['herbalist', 'herbal', 'herball', 'herbarist', 'herbarists'],
+    'physiology': ['physiological', 'phyſiology', 'phyſiological', 'phyſiolo'],
+    'physics': ['physic', 'physick', 'physickes', 'physici'],
+    'botanist': ['botanist', 'botaniſt', 'botanicks', 'botanick', 'herbs', 'herbes'],
+    'mathematics': ['mathematicks', 'mathematick', 'mathematical', 'mathematician', 'mathematicall', 'geometer', 'geometry', 'geometrie'],
+    'pharmacy': ['pharmacy', 'pharmacopoea', 'pharmacopoeia', 'pharmacopaea', 'pharmacopea'],
+    'philosophy': ['philosopher', 'philosophical', 'philoſophical', 'phyloſophers', 'philoſophica', 'philosophers'],
+    'medicine': ['medicine', 'medicament', 'medica'],
+    'surgery': ['surgery', 'chirurgery', 'chirurgerie', 'chyrurgery', 'chirurgions'],
+    'midwifery': ['midwifry', 'midwives', 'midwifes', 'midwiue', 'midwifery']
+}
+
+#Now we search again using the Word2Vec algorithm
+
+# Check if the vocabulary contains expected words
+# Load the Word2Vec model
+model_path = "/content/drive/MyDrive/EEBO/EEBO_Analysis/Women in Science/word2vec_explicit_alpha.model"  # Path to your Word2Vec model
+word2vec_model = Word2Vec.load(model_path)  # Load the model
+
+vocab = set(word2vec_model.wv.index_to_key)
+missing_words = [word for word in revised_science_words if word not in vocab]
+
+if missing_words:
+    print("These seed words are missing from the Word2Vec vocabulary:", missing_words)
+else:
+    print("All seed words are in the Word2Vec vocabulary.")
+
+# Setup logging to capture errors or issues during execution
+logging.basicConfig(filename='revised_science_words_errors.log', level=logging.ERROR)
+
+# Number of similar words to retrieve for each seed word
+num_similar_words = 50  # Adjust to get more or fewer similar words
+
+# Store similar words in a set to avoid duplicates
+revised_science_words_set = set()
+
+# Loop through each category 
+for category, seed_words in revised_science_words.items():
+    # Loop through each seed word in the category
+    for seed_word in seed_words:
+        # Check if the seed word is in the Word2Vec vocabulary
+        if seed_word in word2vec_model.wv:
+            # Get the most similar words
+            try:
+                similar_words = word2vec_model.wv.most_similar(seed_word, topn=num_similar_words)
+                # Add the similar words to the set
+                for word, _ in similar_words:
+                    revised_science_words_set.add(word)
+            except Exception as e:
+                logging.error(f"Error finding similar words for '{seed_word}': {str(e)}")
+        else:
+            print(f"Seed word '{seed_word}' not in Word2Vec vocabulary.")
+
+# Convert the set to a list for final output
+revised_science_words_list = list(revised_science_words_set)
+
+# Print the scientific terms
+print("Derived scientific terms:")
+print(revised_science_words_list)
+
