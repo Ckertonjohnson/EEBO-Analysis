@@ -1,1 +1,152 @@
+##Network Graph of Gender words and Science words
 
+from gensim.models import Word2Vec
+from matplotlib import pyplot as plt
+from matplotlib_venn import venn2
+import numpy as np
+import os
+from sklearn.manifold import TSNE
+
+# Path to the trained Word2Vec model
+model_path = "/content/drive/MyDrive/EEBO/EEBO_Analysis/Women in Science/word2vec_explicit_alpha.model"
+
+# Load the trained Word2Vec model
+model = Word2Vec.load(model_path)
+
+science_words = {
+    'astronomer': ['astronomer', 'aſtronomer', 'astronomical', 'astronomicall', 'astronomie', 'astronomy', 'stronomer', 'aſtronomicae', 'astronomers', 'aſtrology', 'aſtronom', 'aſtrologica'],
+    'chemist': ['chymist', 'chimice', 'chimist', 'chymiſt', 'chymico', 'chymical', 'chimica', 'chymically', 'chymistrie', 'chimistry', 'chymiatrica', 'chymiſts', 'chymiſtry', 'chymiae'],
+    'physician': ['physician', 'physitian', 'phisician', 'phisitions', 'phisitians', 'physicions', 'physitions', 'physiti', 'phisicion', 'phisitian', 'phisitians', 'physitians'],
+    'alchemy': ['alchimy', 'alchimeia', 'alchymy', 'alchymie', 'alchymiſt', 'alchymiſts'],
+    'anatomy': ['anatomia', 'anatomist', 'anatomical', 'anatomy', 'anatomica', 'anatomicall', 'anatomick'],
+    'herbalist': ['herbalist', 'herbal', 'herball', 'herbarist', 'herbarists', 'herbalists'],
+    'physiology': ['physiological', 'phyſiology', 'phyſiolo', 'phyſiologia', 'physiologie'],
+    'physics': ['physic', 'physick', 'physickes', 'physici', 'physicke', 'phyſicks'],
+    'botanist': ['botanist', 'botaniſt', 'botanicks', 'botanick', 'herbs', 'herbes', 'herbe', 'herbal', 'botanical', 'botanicall'],
+    'mathematics': ['mathematicks', 'mathematick', 'mathematical', 'mathematician', 'mathematicall', 'geometer', 'geometry', 'geometrie', 'mathematicians', 'mathematiques', 'arithmetick', 'arithmetical'],
+    'pharmacy': ['pharmacy', 'pharmacopoea', 'pharmacopoeia', 'pharmacopaea', 'pharmacopea', 'pharmacopoeiæ', 'pharmacopeia', 'pharmaceutick'],
+    'philosophy': ['philosopher', 'philosophical', 'philoſophical', 'phyloſophers', 'philoſophica', 'philosophers', 'philosophia', 'philoſoph', 'philos', 'phyloſophia'],
+    'medicine': ['medicine', 'medicament', 'medica', 'medicin', 'medicins', 'medicamenta', 'medication', 'medici'],
+    'surgery': ['surgery', 'chirurgery', 'chirurgerie', 'chyrurgery', 'chirurgions', 'chirurgical', 'chirurgicall', 'chirurgian', 'chirurgi'],
+    'midwifery': ['midwifry', 'midwives', 'midwifes', 'midwiue', 'midwifery', 'midwiues'],
+    'aristotle': ['aristotle', 'aristotelian', 'aristotles', 'ariſtoteles', 'aristotlis', 'ariſtotelien'],
+    'algebra': ['algebra', 'arithmetica', 'arithmetical', 'arithmeticke'],
+    'optical': ['optical', 'optica', 'opticks', 'optiques']
+}
+
+
+# Women words dictionary
+women_words = {
+    'woman': ['woman', 'womman', 'wiman', 'wommen', 'womanish', 'womankind'],
+    'women': ['women', 'wymen', 'wemen', 'weomen'],
+    'she': ['she', 'sche'],
+    'her': ['her', 'hir', 'hyr', 'hers', 'hirz'],
+    'herself': ['herself', 'herselfe', 'hirself'],
+    'female': ['female', 'femall', 'femaile', 'femal', 'females', 'faeminine', 'feminine', 'foeminine', 'feminines'],
+    'girl': ['girl', 'girle', 'gyrl', 'gyrle'],
+    'girls': ['girls', 'girles', 'gyrls'],
+    'lady': ['lady', 'ladie', 'ladey', 'ladeis', 'ladies', 'ladyes', 'landlady'],
+    'mother': ['mother', 'moder', 'muther', 'mothar'],
+    'daughter': ['daughter', 'daughtre', 'doughter', 'daugther'],
+    'sister': ['sister', 'syster', 'sistre', 'sistir'],
+    'aunt': ['aunt', 'aunte', 'ant'],
+    'queen': ['queen', 'queene', 'quene'],
+    'princess': ['princess', 'princesse', 'pryncess'],
+    'heroine': ['heroine', 'heroyn', 'heroyne'],
+    'wife': ['wife', 'wyfe', 'wif', 'wyf'],
+    'witch': ['witch', 'wytch', 'wyche', 'witcherie'],
+    'actress': ['actress', 'actres', 'actresse'],
+    'waitress': ['waitress', 'waiteresse', 'waytres', 'waytresse'],
+    'stewardess': ['stewardess', 'stuardeß'],
+    'empress': ['empress', 'emperess', 'emperesse', 'empryss'],
+    'duchess': ['duchess', 'duchesse', 'dukess', 'duches'],
+    'countess': ['countess', 'countesse', 'counteſs', 'counteſſe'],
+    'madam': ['madam', 'madame'],
+    'nun': ['nun', 'nunne', 'nonne'],
+    'priestess': ['priestess', 'prestess', 'prestesse'],
+    'baroness': ['baroness', 'baronesse'],
+    'widow': ['widow', 'widowe', 'wydow', 'wido'],
+    'bride': ['bride', 'bryde'],
+    'dame': ['dame'],
+    'matriarch': ['matriarch', 'matriarke'],
+    'godmother': ['godmother', 'godmoder'],
+    'betty': ['betty'],
+    'damsel': ['damſel'],
+    'guardian': ['guardianeſs'],
+    'jane': ['jane'],
+    'maid': ['maide'],
+    'mistress': ['miſtris'],
+    'niece': ['niece', 'nece', 'neese', 'niec', 'nec'],
+    'nurse': ['nurſe'],
+    'pregnancy': ['pregnancy'],
+    'suckle': ['suckle'],
+    'venus': ['venus'],
+    'vestal': ['vestal'],
+    'virago': ['virago'],
+    'virgin': ['vyrgyne'],
+    'womanhood': ['womanhood']
+}
+
+# Function to find the intersection of words in the dictionaries with the Word2Vec model's vocabulary
+def find_intersection(word_dict, model):
+    intersection = {}
+    for category, words in word_dict.items():
+        valid_words = [word for word in words if word in model.wv.key_to_index]
+        if valid_words:
+            intersection[category] = valid_words
+    return intersection
+
+# Find intersections for science words and women words
+science_intersection = find_intersection(science_words, model)
+women_intersection = find_intersection(women_words, model)
+
+# Collect all unique words from the intersections
+all_words = set()
+for words in science_intersection.values():
+    all_words.update(words)
+for words in women_intersection.values():
+    all_words.update(words)
+
+# Filter words that are present in the Word2Vec model's vocabulary
+filtered_words = [word for word in all_words if word in model.wv]
+
+# Get the word vectors for the filtered words
+word_vectors = [model.wv[word] for word in filtered_words]
+
+# Convert word_vectors to a numpy array
+word_vectors = np.array(word_vectors)
+
+# Perform t-SNE dimensionality reduction
+tsne = TSNE(n_components=2, random_state=42)
+reduced_vectors = tsne.fit_transform(word_vectors)
+
+# Create a color map for each category
+category_colors = {}
+
+# Assign colors to science words
+for category, words in science_intersection.items():
+    for word in words:
+        if word in filtered_words:
+            category_colors[word] = 'green'
+
+# Assign colors to women words
+for category, words in women_intersection.items():
+    for word in words:
+        if word in filtered_words:
+            category_colors[word] = 'blue'
+
+# Create a custom legend
+legend_elements = [
+    plt.Line2D([0], [0], marker='o', color='w', label='Science Words', markerfacecolor='green', markersize=10),
+    plt.Line2D([0], [0], marker='o', color='w', label='Women Words', markerfacecolor='blue', markersize=10)
+]
+plt.legend(handles=legend_elements, loc='best')
+
+plt.title('t-SNE Visualization of Science and Women Word Vectors')
+
+# Plot the t-SNE visualization
+plt.figure(figsize=(12, 10))
+for i, word in enumerate(filtered_words):
+    plt.scatter(reduced_vectors[i, 0], reduced_vectors[i, 1], color=category_colors[word])
+    plt.annotate(word, xy=(reduced_vectors[i, 0], reduced_vectors[i, 1]), xytext=(5, 2),
+                 textcoords='offset points', ha='right', va='bottom')
